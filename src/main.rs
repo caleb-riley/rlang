@@ -65,6 +65,11 @@ fn main() -> std::io::Result<()> {
                 RuntimeError::UndefinedIdentifier(name) => {
                     report_runtime_err(format!("Unknown identifier: {}", name))
                 }
+                RuntimeError::InvalidArgumentType(expected, got) => {
+                    report_runtime_err(format!(
+                        "Expected type {expected}, got {got}"
+                    ))
+                }
             }
         }
     }
