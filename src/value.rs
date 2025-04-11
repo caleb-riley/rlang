@@ -65,6 +65,16 @@ pub enum Value {
 }
 
 impl Value {
+    pub fn type_name(&self) -> &'static str {
+        match *self {
+            Self::Number(_) => "number",
+            Self::Boolean(_) => "boolean",
+            Self::String(_) => "string",
+            Self::Object(_) => "object",
+            Self::Null => "null",
+        }
+    }
+
     pub fn operate(
         &self,
         other: &Value,

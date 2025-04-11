@@ -20,5 +20,5 @@ fn main() {
     a = b;
     print(a);
     print(pow(3, 4));
-    print({ flag: true, value: 5 });
+    print({ flag: true, value: 5 + false });
 }
