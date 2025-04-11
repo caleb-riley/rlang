@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::stdin;
+use std::rc::Rc;
 
 use crate::registry::ObjRegistry;
 use crate::scope::Scope;
@@ -11,6 +12,7 @@ pub enum RuntimeError {
     OperationError(OperationError),
     InvalidArgCount(usize, usize),
     UndefinedIdentifier(String),
+    InvalidArgumentType(String, String),
 }
 
 enum BodyResult {
@@ -19,7 +21,7 @@ enum BodyResult {
 }
 
 enum FnBody {
-    Builtin(Box<dyn Fn(Vec<Value>) -> Result<Value, RuntimeError>>),
+    Builtin(Box<dyn Fn(Vec<Value>) -> Result<Value, RuntimeError> + 'static>),
     Defined(FnDecl),
 }
 
@@ -30,7 +32,7 @@ pub struct FnObj {
 
 pub struct Interpreter {
     decls: Vec<Decl>,
-    scope: RefCell<Scope>,
+    scope: Rc<RefCell<Scope>>,
     registry: ObjRegistry,
 }
 
@@ -38,63 +40,68 @@ impl Interpreter {
     pub fn new(decls: Vec<Decl>) -> Self {
         Self {
             decls,
-            scope: RefCell::new(Scope::new()),
+            scope: Rc::new(RefCell::new(Scope::new())),
             registry: ObjRegistry::new(),
         }
     }
 
     fn define_fn(
         &mut self,
-        name: String,
-        params: Vec<String>,
-        body: Box<dyn Fn(Vec<Value>) -> Result<Value, RuntimeError>>,
+        name: &str,
+        params: Vec<&str>,
+        body: impl Fn(Vec<Value>) -> Result<Value, RuntimeError> + 'static,
     ) {
         self.registry.register_func(
-            name,
+            name.to_owned(),
             FnObj {
-                params,
-                body: FnBody::Builtin(body),
+                params: params.into_iter().map(|s| s.to_owned()).collect(),
+                body: FnBody::Builtin(Box::new(body)),
             },
         );
     }
 
     fn define_builtins(&mut self) {
-        self.define_fn(
-            "print".to_owned(),
-            vec!["val".to_owned()],
-            Box::new(|args| {
-                println!("{}", args[0]);
-                Ok(Value::Null)
-            }),
-        );
+        self.define_fn("print", vec!["val"], |args| {
+            println!("{}", args[0]);
+            Ok(Value::Null)
+        });
 
-        self.define_fn(
-            "input".to_owned(),
-            vec![],
-            Box::new(|_| {
-                let mut buf = String::new();
-                stdin().read_line(&mut buf).unwrap();
-                Ok(Value::String(buf.trim_end().to_owned()))
-            }),
-        );
+        self.define_fn("input", vec![], |_| {
+            let mut buf = String::new();
+            stdin().read_line(&mut buf).unwrap();
+            Ok(Value::String(buf.trim_end().to_owned()))
+        });
 
-        self.define_fn(
-            "parseint".to_owned(),
-            vec!["str".to_owned()],
-            Box::new(|args| {
-                let Value::String(ref str) = args[0] else {
-                    panic!("expected string, got {}", args[0].type_name());
-                };
-
+        self.define_fn("parseint", vec!["str"], |args| match args[0] {
+            Value::String(ref str) => {
                 Ok(Value::Number(str.parse::<usize>().unwrap()))
-            }),
-        );
+            }
+            _ => Err(RuntimeError::InvalidArgumentType(
+                "string".into(),
+                args[0].type_name().into(),
+            )),
+        });
 
-        self.define_fn(
-            "tostring".to_owned(),
-            vec!["val".to_owned()],
-            Box::new(|args| Ok(Value::String(args[0].to_string()))),
-        );
+        self.define_fn("tostring", vec!["val"], |args| {
+            Ok(Value::String(args[0].to_string()))
+        });
+
+        let scope = Rc::clone(&self.scope);
+
+        self.define_fn("define", vec!["name", "val"], move |mut args| {
+            let name = args.remove(0);
+
+            let Value::String(text) = name else {
+                return Err(RuntimeError::InvalidArgumentType(
+                    "string".into(),
+                    name.type_name().into(),
+                ));
+            };
+
+            scope.borrow_mut().declare(text.clone(), args.remove(0));
+
+            Ok(Value::Null)
+        });
     }
 
     pub fn interpret(mut self) -> Result<(), RuntimeError> {

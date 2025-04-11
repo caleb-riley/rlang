@@ -27,4 +27,7 @@ fn main() {
     let text = input();
     let val = parseint(text);
     print("One more: " + tostring(val + 1));
+
+    define("name", "John");
+    print(name);
 }
