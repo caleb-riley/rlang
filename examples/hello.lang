@@ -20,6 +20,11 @@ fn main() {
     a = b;
     print(a);
     print(pow(3, 4));
+
     let obj = { a: 5 } + { b: false };
     print(obj);
+    
+    let text = input();
+    let val = parseint(text);
+    print("One more: " + tostring(val + 1));
 }
