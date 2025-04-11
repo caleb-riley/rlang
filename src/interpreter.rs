@@ -77,6 +77,24 @@ impl Interpreter {
                 Ok(Value::String(buf.trim_end().to_owned()))
             }),
         );
+
+        self.define_fn(
+            "parseint".to_owned(),
+            vec!["str".to_owned()],
+            Box::new(|args| {
+                let Value::String(ref str) = args[0] else {
+                    panic!("expected string, got {}", args[0].type_name());
+                };
+
+                Ok(Value::Number(str.parse::<usize>().unwrap()))
+            }),
+        );
+
+        self.define_fn(
+            "tostring".to_owned(),
+            vec!["val".to_owned()],
+            Box::new(|args| Ok(Value::String(args[0].to_string()))),
+        );
     }
 
     pub fn interpret(mut self) -> Result<(), RuntimeError> {
