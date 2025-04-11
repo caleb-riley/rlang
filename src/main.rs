@@ -55,7 +55,9 @@ fn main() -> std::io::Result<()> {
                     OperationError::InvalidBinary(left, op, right),
                 ) => report_runtime_err(format!(
                     "Cannot use binary operator {:?} on types {} and {}",
-                    op, left, right
+                    op,
+                    left.type_name(),
+                    right.type_name()
                 )),
                 RuntimeError::InvalidArgCount(exp, rec) => report_runtime_err(
                     format!("Expected {} args, got {}", exp, rec),
