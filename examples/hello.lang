@@ -20,5 +20,6 @@ fn main() {
     a = b;
     print(a);
     print(pow(3, 4));
-    print({ flag: true, value: 5 + false });
+    let obj = { a: 5 } + { b: false };
+    print(obj);
 }
