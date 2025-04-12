@@ -3,7 +3,6 @@ use std::fs;
 use interpreter::*;
 use lexer::*;
 use parser::*;
-use printing::TreePrint;
 use value::OperationError;
 
 mod interpreter;

@@ -1,4 +1,3 @@
-use crate::scope::*;
 use crate::syntax::*;
 
 fn display(text: impl Into<String>, indent: usize) {
@@ -143,28 +142,6 @@ impl TreePrint for Decl {
                     stmt.print(indent + 1);
                 }
             }
-        }
-    }
-}
-
-impl TreePrint for Scope {
-    fn print(&self, indent: usize) {
-        let padding = vec!["  "; indent].into_iter().collect::<String>();
-
-        if indent == 0 {
-            println!("{}Global Scope", padding);
-        } else {
-            println!("{}Child Scope", padding);
-        }
-
-        println!("{} Variables:", padding);
-
-        for (name, obj) in &self.variables {
-            println!("  {}'{}': {}", padding, name, obj);
-        }
-
-        if let Some(child) = &self.parent {
-            child.print(indent + 1);
         }
     }
 }
