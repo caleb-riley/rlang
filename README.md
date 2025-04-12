@@ -1,4 +1,4 @@
-# R-Lang
+# ®️ R-Lang
 
 R-Lang is a scripting language I wrote as a personal project using the Rust programming language. It offers basic features such as functions, variables, and objects.
 
