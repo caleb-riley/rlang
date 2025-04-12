@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt, sync::OnceLock};
 
 use crate::TokenKind;
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Operator {
     Plus,
     Minus,

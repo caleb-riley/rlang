@@ -46,7 +46,13 @@ impl TreePrint for Stmt {
                 display(" val:", indent);
                 assign_stmt.val.print(indent + 1);
             }
-            Stmt::Decl(decl_stmt) => {}
+            Stmt::Decl(DeclStmt { var, val }) => {
+                display("DeclStmt", indent);
+                display(" var:", indent);
+                display(var, indent + 1);
+                display(" val:", indent);
+                val.print(indent + 1);
+            }
         }
     }
 }

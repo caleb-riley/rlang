@@ -31,15 +31,13 @@ pub struct FnObj {
 }
 
 pub struct Interpreter {
-    decls: Vec<Decl>,
     scope: Rc<RefCell<Scope>>,
     registry: ObjRegistry,
 }
 
 impl Interpreter {
-    pub fn new(decls: Vec<Decl>) -> Self {
+    pub fn new() -> Self {
         Self {
-            decls,
             scope: Rc::new(RefCell::new(Scope::new())),
             registry: ObjRegistry::new(),
         }
@@ -104,10 +102,10 @@ impl Interpreter {
         });
     }
 
-    pub fn interpret(mut self) -> Result<(), RuntimeError> {
+    pub fn interpret(mut self, decls: Vec<Decl>) -> Result<(), RuntimeError> {
         self.define_builtins();
 
-        for decl in self.decls.clone() {
+        for decl in decls {
             self.interpret_decl(decl);
         }
 
@@ -266,14 +264,14 @@ impl Interpreter {
                 let right = self.evaluate(&bin_expr.right)?;
 
                 Ok(left
-                    .operate(&right, bin_expr.op.clone())
+                    .operate(&right, bin_expr.op)
                     .map_err(RuntimeError::OperationError))?
             }
             Expr::Unary(unary_expr) => {
                 let expr = self.evaluate(&unary_expr.expr)?;
 
                 Ok(expr
-                    .operate_unary(unary_expr.op.clone())
+                    .operate_unary(unary_expr.op)
                     .map_err(RuntimeError::OperationError))?
             }
             Expr::ObjectLiteral(fields) => {

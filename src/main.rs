@@ -45,9 +45,9 @@ fn main() -> std::io::Result<()> {
         },
     };
 
-    let interpreter = Interpreter::new(decls);
+    let interpreter = Interpreter::new();
 
-    match interpreter.interpret() {
+    match interpreter.interpret(decls) {
         Ok(()) => Ok(()),
         Err(run_err) => match run_err {
             RuntimeError::OperationError(op_err) => match op_err {
