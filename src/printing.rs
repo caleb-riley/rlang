@@ -39,6 +39,16 @@ impl TreePrint for Stmt {
                     stmt.print(indent + 1);
                 }
             }
+            Stmt::While(while_stmt) => {
+                display("WhileStmt", indent);
+                display(" cond:", indent);
+                while_stmt.cond.print(indent + 1);
+                display(" body:", indent);
+
+                for stmt in while_stmt.body.iter() {
+                    stmt.print(indent + 1);
+                }
+            }
             Stmt::Assign(assign_stmt) => {
                 display("AssignStmt", indent);
                 display(" var:", indent);
@@ -93,7 +103,7 @@ impl TreePrint for Expr {
                 binary.right.print(indent + 1);
             }
             Expr::Unary(unary) => {
-                display("Binary", indent);
+                display("Unary", indent);
                 display(" expr:", indent);
                 unary.expr.print(indent + 1);
                 display(" op:", indent);
@@ -153,7 +163,7 @@ impl TreePrint for Scope {
             println!("  {}'{}': {}", padding, name, obj);
         }
 
-        if let Some(child) = &self.child {
+        if let Some(child) = &self.parent {
             child.print(indent + 1);
         }
     }

@@ -3,6 +3,7 @@ use std::fs;
 use interpreter::*;
 use lexer::*;
 use parser::*;
+use printing::TreePrint;
 use value::OperationError;
 
 mod interpreter;
@@ -77,6 +78,7 @@ fn main() -> std::io::Result<()> {
                     "Expected type {expected}, got {got}"
                 ))
             }
+            RuntimeError::NoScope => report_runtime_err("no scope"),
         },
     }
 }

@@ -31,6 +31,7 @@ pub enum TokenKind {
     LetKeyword,
     ReturnKeyword,
     IfKeyword,
+    WhileKeyword,
 
     EndOfFile,
 }
@@ -91,6 +92,7 @@ impl Lexer {
             keywords.insert("false".to_owned(), TokenKind::FalseKeyword);
             keywords.insert("null".to_owned(), TokenKind::NullKeyword);
             keywords.insert("if".to_owned(), TokenKind::IfKeyword);
+            keywords.insert("while".to_owned(), TokenKind::WhileKeyword);
 
             keywords
         };
