@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::io::stdin;
 use std::rc::Rc;
 
-use crate::scope::ScopeHolder;
+use crate::scope::ScopeManager;
 use crate::syntax::*;
 use crate::value::*;
 
@@ -41,14 +41,14 @@ impl FnObj {
 }
 
 pub struct Interpreter {
-    scope: Rc<RefCell<ScopeHolder>>,
+    scope: Rc<RefCell<ScopeManager>>,
     funcs: HashMap<String, FnObj>,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
         Self {
-            scope: Rc::new(RefCell::new(ScopeHolder::new())),
+            scope: Rc::new(RefCell::new(ScopeManager::default())),
             funcs: HashMap::new(),
         }
     }
