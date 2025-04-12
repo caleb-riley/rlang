@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use crate::lexer::*;
 use crate::syntax::*;
 use crate::value::Operator;
@@ -11,14 +13,14 @@ pub enum ParseError {
 const DEBUG_ENABLED: bool = false;
 
 pub struct Parser {
-    tokens: Vec<Token>,
+    tokens: VecDeque<Token>,
     position: usize,
 }
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Self {
-            tokens,
+            tokens: tokens.into_iter().collect(),
             position: 0,
         }
     }
@@ -42,22 +44,11 @@ impl Parser {
         self.tokens.get(index as usize)
     }
 
-    fn advance(&mut self) {
-        self.position += 1;
-    }
-
-    fn consume(&mut self, kind: TokenKind) -> Result<&Token, ParseError> {
-        if self.current().is_none() {
-            return Err(ParseError::EndOfFile);
-        };
-
-        self.advance();
-        let current = self.peek(-1).unwrap();
-
-        if kind == current.kind {
-            Ok(current)
-        } else {
-            Err(ParseError::ExpectedToken(kind, current.kind))
+    fn consume(&mut self, kind: TokenKind) -> Result<Token, ParseError> {
+        match self.tokens.pop_front() {
+            Some(token) if token.kind == kind => Ok(token),
+            Some(token) => Err(ParseError::ExpectedToken(kind, token.kind)),
+            None => Err(ParseError::EndOfFile),
         }
     }
 
@@ -94,7 +85,7 @@ impl Parser {
         self.debug("parse fn decl");
 
         self.consume(TokenKind::FnKeyword)?;
-        let name = self.consume(TokenKind::Identifer)?.text.clone();
+        let name = self.consume(TokenKind::Identifer)?.text;
         self.consume(TokenKind::LeftParen)?;
         let params = self.parse_params()?;
         self.consume(TokenKind::RightParen)?;
@@ -117,7 +108,7 @@ impl Parser {
         }
 
         while self.current().is_some() {
-            let name = self.consume(TokenKind::Identifer)?.text.clone();
+            let name = self.consume(TokenKind::Identifer)?.text;
 
             params.push(name);
 
@@ -243,12 +234,12 @@ impl Parser {
 
         match current.kind {
             TokenKind::Number => {
-                let arg = self.consume(TokenKind::Number)?.text.clone();
+                let arg = self.consume(TokenKind::Number)?.text;
                 let value = arg.parse::<i32>().unwrap();
                 Ok(Expr::NumberLiteral(value))
             }
             TokenKind::String => {
-                let str = self.consume(TokenKind::String)?.text.clone();
+                let str = self.consume(TokenKind::String)?.text;
                 Ok(Expr::StringLiteral(str[1..str.len() - 1].to_owned()))
             }
             TokenKind::TrueKeyword => {
@@ -260,12 +251,10 @@ impl Parser {
                 Ok(Expr::BooleanLiteral(false))
             }
             TokenKind::Identifer => {
-                let ident = current.text.clone();
-
                 if self.peek(1).unwrap().kind == TokenKind::LeftParen {
                     Ok(Expr::FnCall(self.parse_fn_call()?))
                 } else {
-                    self.consume(TokenKind::Identifer)?;
+                    let ident = self.consume(TokenKind::Identifer)?.text;
                     Ok(Expr::Identfier(ident))
                 }
             }
@@ -293,7 +282,7 @@ impl Parser {
             return Ok(fields);
         }
 
-        let name = self.consume(TokenKind::Identifer)?.text.clone();
+        let name = self.consume(TokenKind::Identifer)?.text;
         self.consume(TokenKind::Colon)?;
         let expr = self.parse_expr()?;
 
@@ -302,7 +291,7 @@ impl Parser {
         while self.current().unwrap().kind != TokenKind::RightBrace {
             self.consume(TokenKind::Comma)?;
 
-            let name = self.consume(TokenKind::Identifer)?.text.clone();
+            let name = self.consume(TokenKind::Identifer)?.text;
             self.consume(TokenKind::Colon)?;
             let expr = self.parse_expr()?;
 
@@ -326,7 +315,7 @@ impl Parser {
             TokenKind::IfKeyword => Ok(Stmt::If(self.parse_if_stmt()?)),
             TokenKind::LetKeyword => {
                 self.consume(TokenKind::LetKeyword)?;
-                let var = self.consume(TokenKind::Identifer)?.text.clone();
+                let var = self.consume(TokenKind::Identifer)?.text;
                 self.consume(TokenKind::Equals)?;
                 let val = self.parse_expr()?;
                 self.consume(TokenKind::Semicolon)?;
@@ -349,7 +338,7 @@ impl Parser {
     }
 
     fn parse_assign(&mut self) -> Result<AssignStmt, ParseError> {
-        let var = self.consume(TokenKind::Identifer)?.text.clone();
+        let var = self.consume(TokenKind::Identifer)?.text;
         self.consume(TokenKind::Equals)?;
         let val = self.parse_expr()?;
 
@@ -395,7 +384,7 @@ impl Parser {
     fn parse_fn_call(&mut self) -> Result<FnCall, ParseError> {
         self.debug("parse fn call");
 
-        let name = self.consume(TokenKind::Identifer)?.text.clone();
+        let name = self.consume(TokenKind::Identifer)?.text;
         self.consume(TokenKind::LeftParen)?;
         let args = self.parse_expr_list()?;
         self.consume(TokenKind::RightParen)?;

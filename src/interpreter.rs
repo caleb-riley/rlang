@@ -19,14 +19,24 @@ enum BodyResult {
     None,
 }
 
-enum FnBody {
-    Builtin(Box<dyn Fn(Vec<Value>) -> Result<Value, RuntimeError> + 'static>),
-    Defined(FnDecl),
+enum FnObj {
+    Builtin {
+        param_count: usize,
+        body: Box<dyn Fn(Vec<Value>) -> Result<Value, RuntimeError> + 'static>,
+    },
+    Defined {
+        params: Vec<String>,
+        body: Vec<Stmt>,
+    },
 }
 
-pub struct FnObj {
-    params: Vec<String>,
-    body: FnBody,
+impl FnObj {
+    fn param_count(&self) -> usize {
+        match self {
+            Self::Builtin { param_count, .. } => *param_count,
+            Self::Defined { params, .. } => params.len(),
+        }
+    }
 }
 
 pub struct Interpreter {
@@ -45,31 +55,31 @@ impl Interpreter {
     fn define_fn(
         &mut self,
         name: &str,
-        params: Vec<&str>,
+        param_count: usize,
         body: impl Fn(Vec<Value>) -> Result<Value, RuntimeError> + 'static,
     ) {
         self.funcs.insert(
             name.to_owned(),
-            FnObj {
-                params: params.into_iter().map(|s| s.to_owned()).collect(),
-                body: FnBody::Builtin(Box::new(body)),
+            FnObj::Builtin {
+                param_count,
+                body: Box::new(body),
             },
         );
     }
 
     fn define_builtins(&mut self) {
-        self.define_fn("print", vec!["val"], |args| {
+        self.define_fn("print", 1, |args| {
             println!("{}", args[0]);
             Ok(Value::Null)
         });
 
-        self.define_fn("input", vec![], |_| {
+        self.define_fn("input", 0, |_| {
             let mut buf = String::new();
             stdin().read_line(&mut buf).unwrap();
             Ok(Value::String(buf.trim_end().to_owned()))
         });
 
-        self.define_fn("parseint", vec!["str"], |args| match args[0] {
+        self.define_fn("parseint", 1, |args| match args[0] {
             Value::String(ref str) => {
                 Ok(Value::Number(str.parse::<i32>().unwrap()))
             }
@@ -79,13 +89,13 @@ impl Interpreter {
             )),
         });
 
-        self.define_fn("tostring", vec!["val"], |args| {
+        self.define_fn("tostring", 1, |args| {
             Ok(Value::String(args[0].to_string()))
         });
 
         let scope = Rc::clone(&self.scope);
 
-        self.define_fn("define", vec!["name", "val"], move |mut args| {
+        self.define_fn("define", 2, move |mut args| {
             let name = args.remove(0);
 
             let Value::String(text) = name else {
@@ -95,7 +105,7 @@ impl Interpreter {
                 ));
             };
 
-            scope.borrow_mut().declare(text.clone(), args.remove(0));
+            scope.borrow_mut().declare(text, args.remove(0));
 
             Ok(Value::Null)
         });
@@ -144,30 +154,26 @@ impl Interpreter {
         func: &FnObj,
         args: Vec<Value>,
     ) -> Result<Value, RuntimeError> {
-        if args.len() != func.params.len() {
+        if args.len() != func.param_count() {
             return Err(RuntimeError::InvalidArgCount(
                 args.len(),
-                func.params.len(),
+                func.param_count(),
             ));
         }
 
-        match &func.body {
-            FnBody::Builtin(builtin_fn) => builtin_fn(args),
-            FnBody::Defined(defined_fn) => {
+        match &func {
+            FnObj::Builtin { body, .. } => body(args),
+            FnObj::Defined { params, body } => {
                 self.scope.borrow_mut().push_scope();
 
-                for (index, arg) in args.iter().enumerate() {
-                    self.scope
-                        .borrow_mut()
-                        .declare(func.params[index].clone(), arg.clone());
+                for (param, arg) in params.iter().zip(args.into_iter()) {
+                    self.scope.borrow_mut().declare(param.clone(), arg);
                 }
 
                 let res =
-                    self.interpret_body(&defined_fn.body).map(|body_res| {
-                        match body_res {
-                            BodyResult::Return(val) => val,
-                            BodyResult::None => Value::Null,
-                        }
+                    self.interpret_body(body).map(|body_res| match body_res {
+                        BodyResult::Return(val) => val,
+                        BodyResult::None => Value::Null,
                     });
 
                 self.scope.borrow_mut().pop_scope();
@@ -181,10 +187,10 @@ impl Interpreter {
         match decl {
             Decl::FnDecl(fn_decl) => {
                 self.funcs.insert(
-                    fn_decl.name.clone(),
-                    FnObj {
-                        params: fn_decl.params.clone(),
-                        body: FnBody::Defined(fn_decl),
+                    fn_decl.name,
+                    FnObj::Defined {
+                        params: fn_decl.params,
+                        body: fn_decl.body,
                     },
                 );
             }
