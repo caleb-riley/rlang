@@ -30,4 +30,6 @@ fn main() {
 
     define("name", "John");
     print(name);
+    
+    print(-6);
 }

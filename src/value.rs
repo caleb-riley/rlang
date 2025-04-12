@@ -53,11 +53,12 @@ impl Operator {
 
 pub enum OperationError {
     InvalidBinary(Value, Operator, Value),
+    InvalidUnary(Operator, Value),
 }
 
 #[derive(Clone)]
 pub enum Value {
-    Number(usize),
+    Number(i32),
     Boolean(bool),
     String(String),
     Object(HashMap<String, Value>),
@@ -73,6 +74,16 @@ impl Value {
             Self::Object(_) => "object",
             Self::Null => "null",
         }
+    }
+
+    pub fn operate_unary(&self, op: Operator) -> Result<Value, OperationError> {
+        if op == Operator::Minus {
+            if let Value::Number(num) = self {
+                return Ok(Value::Number(-num));
+            }
+        }
+
+        Err(OperationError::InvalidUnary(op, self.clone()))
     }
 
     pub fn operate(

@@ -86,6 +86,13 @@ impl TreePrint for Expr {
                 display(" right:", indent);
                 binary.right.print(indent + 1);
             }
+            Expr::Unary(unary) => {
+                display("Binary", indent);
+                display(" expr:", indent);
+                unary.expr.print(indent + 1);
+                display(" op:", indent);
+                display(format!("{:?}", unary.op), indent + 1);
+            }
             Expr::ObjectLiteral(fields) => {
                 display("ObjectLiteral", indent);
 
