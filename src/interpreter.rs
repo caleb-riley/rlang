@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::io::stdin;
 use std::rc::Rc;
 
-use crate::registry::ObjRegistry;
 use crate::scope::Scope;
 use crate::syntax::*;
 use crate::value::*;
@@ -32,14 +31,14 @@ pub struct FnObj {
 
 pub struct Interpreter {
     scope: Rc<RefCell<Scope>>,
-    registry: ObjRegistry,
+    funcs: HashMap<String, FnObj>,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
         Self {
             scope: Rc::new(RefCell::new(Scope::new())),
-            registry: ObjRegistry::new(),
+            funcs: HashMap::new(),
         }
     }
 
@@ -49,7 +48,7 @@ impl Interpreter {
         params: Vec<&str>,
         body: impl Fn(Vec<Value>) -> Result<Value, RuntimeError> + 'static,
     ) {
-        self.registry.register_func(
+        self.funcs.insert(
             name.to_owned(),
             FnObj {
                 params: params.into_iter().map(|s| s.to_owned()).collect(),
@@ -114,7 +113,7 @@ impl Interpreter {
             .map(Value::String)
             .collect::<Vec<_>>();
 
-        match self.registry.get_func(&"main".to_owned()) {
+        match self.funcs.get("main") {
             Some(main) => self.call_fn(main, cmd_args)?,
             None => panic!("No main function found!"),
         };
@@ -181,7 +180,7 @@ impl Interpreter {
     fn interpret_decl(&mut self, decl: Decl) {
         match decl {
             Decl::FnDecl(fn_decl) => {
-                self.registry.register_func(
+                self.funcs.insert(
                     fn_decl.name.clone(),
                     FnObj {
                         params: fn_decl.params.clone(),
@@ -196,8 +195,8 @@ impl Interpreter {
         match stmt {
             Stmt::FnCall(FnCall { name, args }) => {
                 let func = self
-                    .registry
-                    .get_func(name)
+                    .funcs
+                    .get(name)
                     .ok_or(RuntimeError::UndefinedIdentifier(name.clone()))?;
                 self.call_fn(
                     func,
@@ -248,8 +247,8 @@ impl Interpreter {
             Expr::StringLiteral(str) => Ok(Value::String(str.clone())),
             Expr::FnCall(FnCall { name, args }) => {
                 let func = self
-                    .registry
-                    .get_func(name)
+                    .funcs
+                    .get(name)
                     .ok_or(RuntimeError::UndefinedIdentifier(name.clone()))?;
                 let res = self.call_fn(
                     func,
