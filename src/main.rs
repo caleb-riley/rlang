@@ -9,7 +9,6 @@ mod interpreter;
 mod lexer;
 mod parser;
 mod printing;
-mod registry;
 mod scope;
 mod syntax;
 mod value;
