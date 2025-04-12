@@ -37,7 +37,7 @@ fn main(arg) {
 When running this example, you would execute the following command with a single argument:
 
 ```
-> cargo r --release ./main.rl John
+$ cargo r --release ./main.rl John
 Hello, John!
 ```
 
@@ -55,7 +55,7 @@ fn main() {
 Running it would give the following output:
 
 ```
-> cargo r --release ./object.rl
+$ cargo r --release ./object.rl
 { flag: true }
 ```
 
@@ -71,7 +71,7 @@ fn main() {
 Running it would give the following output:
 
 ```
-> cargo r --release ./object.rl
+$ cargo r --release ./object.rl
 { flag: true, count: 2 }
 ```
 
