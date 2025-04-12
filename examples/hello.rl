@@ -32,4 +32,11 @@ fn main() {
     print(name);
     
     print(-6);
+
+    let index = 1;
+
+    while index < 10 {
+        print(index);
+        index = index + 1;
+    }
 }

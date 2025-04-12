@@ -14,6 +14,7 @@ pub enum Stmt {
     FnCall(FnCall),
     Return(ReturnStmt),
     If(IfStmt),
+    While(WhileStmt),
     Assign(AssignStmt),
     Decl(DeclStmt),
 }
@@ -33,6 +34,11 @@ pub struct ReturnStmt {
 }
 
 pub struct IfStmt {
+    pub cond: Expr,
+    pub body: Vec<Stmt>,
+}
+
+pub struct WhileStmt {
     pub cond: Expr,
     pub body: Vec<Stmt>,
 }

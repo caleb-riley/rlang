@@ -313,6 +313,9 @@ impl Parser {
                 Ok(Stmt::Return(self.parse_return_stmt()?))
             }
             TokenKind::IfKeyword => Ok(Stmt::If(self.parse_if_stmt()?)),
+            TokenKind::WhileKeyword => {
+                Ok(Stmt::While(self.parse_while_stmt()?))
+            }
             TokenKind::LetKeyword => {
                 self.consume(TokenKind::LetKeyword)?;
                 let var = self.consume(TokenKind::Identifer)?.text;
@@ -355,6 +358,18 @@ impl Parser {
         self.consume(TokenKind::RightBrace)?;
 
         Ok(IfStmt { cond, body })
+    }
+
+    fn parse_while_stmt(&mut self) -> Result<WhileStmt, ParseError> {
+        self.debug("parse while stmt");
+
+        self.consume(TokenKind::WhileKeyword)?;
+        let cond = self.parse_expr()?;
+        self.consume(TokenKind::LeftBrace)?;
+        let body = self.parse_body()?;
+        self.consume(TokenKind::RightBrace)?;
+
+        Ok(WhileStmt { cond, body })
     }
 
     fn parse_return_stmt(&mut self) -> Result<ReturnStmt, ParseError> {

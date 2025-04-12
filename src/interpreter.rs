@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::io::stdin;
 use std::rc::Rc;
 
-use crate::scope::Scope;
+use crate::scope::ScopeHolder;
 use crate::syntax::*;
 use crate::value::*;
 
@@ -12,6 +12,7 @@ pub enum RuntimeError {
     InvalidArgCount(usize, usize),
     UndefinedIdentifier(String),
     InvalidArgumentType(String, String),
+    NoScope,
 }
 
 enum BodyResult {
@@ -40,14 +41,14 @@ impl FnObj {
 }
 
 pub struct Interpreter {
-    scope: Rc<RefCell<Scope>>,
+    scope: Rc<RefCell<ScopeHolder>>,
     funcs: HashMap<String, FnObj>,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
         Self {
-            scope: Rc::new(RefCell::new(Scope::new())),
+            scope: Rc::new(RefCell::new(ScopeHolder::new())),
             funcs: HashMap::new(),
         }
     }
@@ -105,9 +106,34 @@ impl Interpreter {
                 ));
             };
 
-            scope.borrow_mut().declare(text, args.remove(0));
+            scope
+                .borrow_mut()
+                .inner_mut()
+                .ok_or(RuntimeError::NoScope)?
+                .declare(text, args.remove(0));
 
             Ok(Value::Null)
+        });
+
+        let scope = Rc::clone(&self.scope);
+
+        self.define_fn("var", 1, move |mut args| {
+            let name = args.remove(0);
+
+            let Value::String(text) = name else {
+                return Err(RuntimeError::InvalidArgumentType(
+                    "string".into(),
+                    name.type_name().into(),
+                ));
+            };
+
+            Ok(scope
+                .borrow_mut()
+                .inner()
+                .ok_or(RuntimeError::NoScope)?
+                .get(&text)
+                .cloned()
+                .unwrap_or(Value::Null))
         });
     }
 
@@ -138,15 +164,22 @@ impl Interpreter {
         self.scope.borrow_mut().push_scope();
 
         for stmt in body.iter() {
-            if let BodyResult::Return(val) = self.interpret_stmt(stmt)? {
-                self.scope.borrow_mut().pop_scope();
-                return Ok(BodyResult::Return(val));
+            if let ret @ BodyResult::Return(_) = self.interpret_stmt(stmt)? {
+                self.scope
+                    .borrow_mut()
+                    .pop_scope()
+                    .map_err(|_| RuntimeError::NoScope)?;
+
+                return Ok(ret);
             }
         }
 
-        self.scope.borrow_mut().pop_scope();
+        self.scope
+            .borrow_mut()
+            .pop_scope()
+            .map_err(|_| RuntimeError::NoScope)?;
 
-        Ok(BodyResult::Return(Value::Null))
+        Ok(BodyResult::None)
     }
 
     fn call_fn(
@@ -167,7 +200,11 @@ impl Interpreter {
                 self.scope.borrow_mut().push_scope();
 
                 for (param, arg) in params.iter().zip(args.into_iter()) {
-                    self.scope.borrow_mut().declare(param.clone(), arg);
+                    self.scope
+                        .borrow_mut()
+                        .inner_mut()
+                        .ok_or(RuntimeError::NoScope)?
+                        .declare(param.clone(), arg);
                 }
 
                 let res =
@@ -176,7 +213,10 @@ impl Interpreter {
                         BodyResult::None => Value::Null,
                     });
 
-                self.scope.borrow_mut().pop_scope();
+                self.scope
+                    .borrow_mut()
+                    .pop_scope()
+                    .map_err(|_| RuntimeError::NoScope)?;
 
                 res
             }
@@ -223,17 +263,41 @@ impl Interpreter {
                     Ok(BodyResult::None)
                 }
             }
+            Stmt::While(WhileStmt { cond, body }) => loop {
+                let Value::Boolean(result) = self.evaluate(cond)? else {
+                    panic!("WhileStmt must have boolean as condition!");
+                };
+
+                if !result {
+                    return Ok(BodyResult::None);
+                }
+
+                if let result @ BodyResult::Return(_) =
+                    self.interpret_body(body)?
+                {
+                    return Ok(result);
+                }
+            },
             Stmt::Return(ReturnStmt { expr }) => {
                 Ok(BodyResult::Return(self.evaluate(expr)?))
             }
             Stmt::Assign(AssignStmt { var, val }) => {
                 let val = self.evaluate(val)?;
-                self.scope.borrow_mut().set(var.clone(), val);
+                self.scope
+                    .borrow_mut()
+                    .inner_mut()
+                    .ok_or(RuntimeError::NoScope)?
+                    .set(var, val)
+                    .map_err(|_| RuntimeError::NoScope)?;
                 Ok(BodyResult::None)
             }
             Stmt::Decl(DeclStmt { var, val }) => {
                 let val = self.evaluate(val)?;
-                self.scope.borrow_mut().declare(var.clone(), val);
+                self.scope
+                    .borrow_mut()
+                    .inner_mut()
+                    .ok_or(RuntimeError::NoScope)?
+                    .declare(var.clone(), val);
                 Ok(BodyResult::None)
             }
         }
@@ -244,6 +308,8 @@ impl Interpreter {
             Expr::Identfier(name) => Ok(self
                 .scope
                 .borrow()
+                .inner()
+                .ok_or(RuntimeError::NoScope)?
                 .get(name)
                 .ok_or(RuntimeError::UndefinedIdentifier(name.clone()))?
                 .clone()),
