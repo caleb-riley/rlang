@@ -77,7 +77,7 @@ $ cargo r --release ./object.rl
 
 ## Built-in Functions
 
-R-Lang offers a few built-in functions to make your life easier.
+R-Lang offers a collection of built-in functions to make your life easier and provide additional functionality that can't be defined by the developer. They do not require any imports and can be used from anywhere in your program.
 
 | Name | Arguments | Return | Purpose |
 |:----:|:---------:|:------:|:--------|
