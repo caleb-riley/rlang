@@ -187,7 +187,7 @@ impl Parser {
     ) -> Result<Expr, ParseError> {
         self.debug("parse binary expr");
 
-        let mut left = self.parse_primary_expr()?;
+        let mut left = self.parse_unary_expr()?;
 
         loop {
             let Some(current) = self.current() else { break };
@@ -215,6 +215,27 @@ impl Parser {
         Ok(left)
     }
 
+    fn parse_unary_expr(&mut self) -> Result<Expr, ParseError> {
+        self.debug("parse binary expr");
+
+        let Some(current) = self.current() else {
+            return Err(ParseError::EndOfFile);
+        };
+
+        match current.kind {
+            TokenKind::Minus => {
+                self.consume(TokenKind::Minus)?;
+                let inner = self.parse_unary_expr()?;
+
+                Ok(Expr::Unary(Unary {
+                    op: Operator::Minus,
+                    expr: Box::new(inner),
+                }))
+            }
+            _ => self.parse_primary_expr(),
+        }
+    }
+
     fn parse_primary_expr(&mut self) -> Result<Expr, ParseError> {
         self.debug("parse primary expr");
 
@@ -223,7 +244,7 @@ impl Parser {
         match current.kind {
             TokenKind::Number => {
                 let arg = self.consume(TokenKind::Number)?.text.clone();
-                let value = arg.parse::<usize>().unwrap();
+                let value = arg.parse::<i32>().unwrap();
                 Ok(Expr::NumberLiteral(value))
             }
             TokenKind::String => {

@@ -49,28 +49,35 @@ fn main() -> std::io::Result<()> {
 
     match interpreter.interpret() {
         Ok(()) => Ok(()),
-        Err(run_err) => {
-            match run_err {
-                RuntimeError::OperationError(
-                    OperationError::InvalidBinary(left, op, right),
-                ) => report_runtime_err(format!(
-                    "Cannot use binary operator {:?} on types {} and {}",
-                    op,
-                    left.type_name(),
-                    right.type_name()
-                )),
-                RuntimeError::InvalidArgCount(exp, rec) => report_runtime_err(
-                    format!("Expected {} args, got {}", exp, rec),
-                ),
-                RuntimeError::UndefinedIdentifier(name) => {
-                    report_runtime_err(format!("Unknown identifier: {}", name))
-                }
-                RuntimeError::InvalidArgumentType(expected, got) => {
+        Err(run_err) => match run_err {
+            RuntimeError::OperationError(op_err) => match op_err {
+                OperationError::InvalidBinary(left, op, right) => {
                     report_runtime_err(format!(
-                        "Expected type {expected}, got {got}"
-                    ))
+                        "Cannot use binary operator {:?} on types {} and {}",
+                        op,
+                        left.type_name(),
+                        right.type_name()
+                    ));
                 }
+                OperationError::InvalidUnary(op, expr) => {
+                    report_runtime_err(format!(
+                        "Cannot use unary operator {:?} on type {}",
+                        op,
+                        expr.type_name(),
+                    ));
+                }
+            },
+            RuntimeError::InvalidArgCount(exp, rec) => report_runtime_err(
+                format!("Expected {} args, got {}", exp, rec),
+            ),
+            RuntimeError::UndefinedIdentifier(name) => {
+                report_runtime_err(format!("Unknown identifier: {}", name))
             }
-        }
+            RuntimeError::InvalidArgumentType(expected, got) => {
+                report_runtime_err(format!(
+                    "Expected type {expected}, got {got}"
+                ))
+            }
+        },
     }
 }

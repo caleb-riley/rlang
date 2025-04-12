@@ -74,7 +74,7 @@ impl Interpreter {
 
         self.define_fn("parseint", vec!["str"], |args| match args[0] {
             Value::String(ref str) => {
-                Ok(Value::Number(str.parse::<usize>().unwrap()))
+                Ok(Value::Number(str.parse::<i32>().unwrap()))
             }
             _ => Err(RuntimeError::InvalidArgumentType(
                 "string".into(),
@@ -267,6 +267,13 @@ impl Interpreter {
 
                 Ok(left
                     .operate(&right, bin_expr.op.clone())
+                    .map_err(RuntimeError::OperationError))?
+            }
+            Expr::Unary(unary_expr) => {
+                let expr = self.evaluate(&unary_expr.expr)?;
+
+                Ok(expr
+                    .operate_unary(unary_expr.op.clone())
                     .map_err(RuntimeError::OperationError))?
             }
             Expr::ObjectLiteral(fields) => {

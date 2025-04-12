@@ -47,7 +47,7 @@ pub struct IfStmt {
 #[derive(Clone)]
 pub enum Expr {
     Identfier(String),
-    NumberLiteral(usize),
+    NumberLiteral(i32),
     BooleanLiteral(bool),
     StringLiteral(String),
     NullLiteral,
@@ -55,6 +55,7 @@ pub enum Expr {
     FieldAccess(FieldAccess),
     ObjectLiteral(Vec<(String, Expr)>),
     Binary(Binary),
+    Unary(Unary),
 }
 
 #[derive(Clone)]
@@ -68,6 +69,12 @@ pub struct Binary {
     pub op: Operator,
     pub left: Box<Expr>,
     pub right: Box<Expr>,
+}
+
+#[derive(Clone)]
+pub struct Unary {
+    pub op: Operator,
+    pub expr: Box<Expr>,
 }
 
 #[derive(Clone)]
