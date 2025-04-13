@@ -52,6 +52,7 @@ pub enum Expr {
     FnCall(FnCall),
     FieldAccess(FieldAccess),
     ObjectLiteral(Vec<(String, Expr)>),
+    ListLiteral(Vec<Expr>),
     Binary(Binary),
     Unary(Unary),
 }
