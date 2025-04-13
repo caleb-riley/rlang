@@ -1,6 +1,8 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::stdin;
+use std::io::stdout;
+use std::io::Write;
 use std::rc::Rc;
 
 use crate::scope::ScopeManager;
@@ -13,6 +15,7 @@ pub enum RuntimeError {
     UndefinedIdentifier(String),
     InvalidArgumentType(String, String),
     NoScope,
+    IndexOutOfBounds(usize, isize),
 }
 
 enum BodyResult {
@@ -74,10 +77,23 @@ impl Interpreter {
             Ok(Value::Null)
         });
 
-        self.define_fn("input", 0, |_| {
+        self.define_fn("prompt", 1, |mut args| {
+            let arg1 = args.remove(0);
+
+            let Value::String(msg) = arg1 else {
+                return Err(RuntimeError::InvalidArgumentType(
+                    "string".into(),
+                    args[0].type_name().into(),
+                ));
+            };
+
+            print!("{}", msg);
+            stdout().flush().unwrap();
+
             let mut buf = String::new();
             stdin().read_line(&mut buf).unwrap();
-            Ok(Value::String(buf.trim_end().to_owned()))
+
+            Ok(Value::String(buf.trim().to_owned()))
         });
 
         self.define_fn("parseint", 1, |args| match args[0] {
@@ -94,46 +110,92 @@ impl Interpreter {
             Ok(Value::String(args[0].to_string()))
         });
 
-        let scope = Rc::clone(&self.scope);
+        self.define_fn("len", 1, move |mut args| {
+            let value = args.remove(0);
 
-        self.define_fn("define", 2, move |mut args| {
-            let name = args.remove(0);
-
-            let Value::String(text) = name else {
+            let Value::List(list) = value else {
                 return Err(RuntimeError::InvalidArgumentType(
-                    "string".into(),
-                    name.type_name().into(),
+                    "list".into(),
+                    value.type_name().into(),
                 ));
             };
 
-            scope
-                .borrow_mut()
-                .inner_mut()
-                .ok_or(RuntimeError::NoScope)?
-                .declare(text, args.remove(0));
+            let list = list.borrow();
+
+            Ok(Value::Number(list.len() as i32))
+        });
+
+        self.define_fn("get", 2, move |mut args| {
+            let value = args.remove(0);
+
+            let Value::List(list) = value else {
+                return Err(RuntimeError::InvalidArgumentType(
+                    "list".into(),
+                    value.type_name().into(),
+                ));
+            };
+
+            let value = args.remove(0);
+
+            let Value::Number(index) = value else {
+                return Err(RuntimeError::InvalidArgumentType(
+                    "number".into(),
+                    value.type_name().into(),
+                ));
+            };
+
+            let list = list.borrow();
+
+            list.get(index as usize).map(Value::copy_shallow).ok_or(
+                RuntimeError::IndexOutOfBounds(list.len(), index as isize),
+            )
+        });
+
+        self.define_fn("set", 3, move |mut args| {
+            let value = args.remove(0);
+
+            let Value::List(list) = value else {
+                return Err(RuntimeError::InvalidArgumentType(
+                    "list".into(),
+                    value.type_name().into(),
+                ));
+            };
+
+            let value = args.remove(0);
+
+            let Value::Number(index) = value else {
+                return Err(RuntimeError::InvalidArgumentType(
+                    "number".into(),
+                    value.type_name().into(),
+                ));
+            };
+
+            let value = args.remove(0);
+
+            let length = list.borrow().len();
+
+            *list.borrow_mut().get_mut(index as usize).ok_or(
+                RuntimeError::IndexOutOfBounds(length, index as isize),
+            )? = value;
 
             Ok(Value::Null)
         });
 
-        let scope = Rc::clone(&self.scope);
+        self.define_fn("append", 2, move |mut args| {
+            let value = args.remove(0);
 
-        self.define_fn("var", 1, move |mut args| {
-            let name = args.remove(0);
-
-            let Value::String(text) = name else {
+            let Value::List(list) = value else {
                 return Err(RuntimeError::InvalidArgumentType(
-                    "string".into(),
-                    name.type_name().into(),
+                    "list".into(),
+                    value.type_name().into(),
                 ));
             };
 
-            Ok(scope
-                .borrow_mut()
-                .inner()
-                .ok_or(RuntimeError::NoScope)?
-                .get(&text)
-                .cloned()
-                .unwrap_or(Value::Null))
+            let value = args.remove(0);
+
+            list.borrow_mut().push(value);
+
+            Ok(Value::Null)
         });
     }
 
@@ -312,7 +374,7 @@ impl Interpreter {
                 .ok_or(RuntimeError::NoScope)?
                 .get(name)
                 .ok_or(RuntimeError::UndefinedIdentifier(name.clone()))?
-                .clone()),
+                .copy_shallow()),
             Expr::NumberLiteral(num) => Ok(Value::Number(*num)),
             Expr::BooleanLiteral(bool) => Ok(Value::Boolean(*bool)),
             Expr::NullLiteral => Ok(Value::Null),
@@ -352,7 +414,15 @@ impl Interpreter {
                     object.insert(name.clone(), self.evaluate(expr)?);
                 }
 
-                Ok(Value::Object(object))
+                Ok(Value::Object(Rc::new(RefCell::new(object))))
+            }
+            Expr::ListLiteral(values) => {
+                let list = values
+                    .iter()
+                    .map(|expr| self.evaluate(expr))
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                Ok(Value::List(Rc::new(RefCell::new(list))))
             }
             Expr::FieldAccess(FieldAccess { .. }) => todo!(),
         }

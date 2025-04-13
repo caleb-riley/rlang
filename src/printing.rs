@@ -118,6 +118,14 @@ impl TreePrint for Expr {
                     value.print(indent + 1);
                 }
             }
+            Expr::ListLiteral(values) => {
+                display("ListLiteral", indent);
+
+                for value in values {
+                    display(" value: ", indent);
+                    value.print(indent + 1);
+                }
+            }
             Expr::FieldAccess(_) => todo!(),
         }
     }

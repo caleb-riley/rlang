@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt, sync::OnceLock};
+use std::{cell::RefCell, collections::HashMap, fmt, rc::Rc, sync::OnceLock};
 
 use crate::TokenKind;
 
@@ -56,22 +56,33 @@ pub enum OperationError {
     InvalidUnary(Operator, Value),
 }
 
-#[derive(Clone)]
 pub enum Value {
     Number(i32),
     Boolean(bool),
     String(String),
-    Object(HashMap<String, Value>),
+    Object(Rc<RefCell<HashMap<String, Value>>>),
+    List(Rc<RefCell<Vec<Value>>>),
     Null,
 }
 
 impl Value {
+    pub fn copy_shallow(&self) -> Self {
+        match &self {
+            Self::Number(v) => Self::Number(*v),
+            Self::Boolean(v) => Self::Boolean(*v),
+            Self::String(s) => Self::String(s.clone()),
+            Self::Object(o) => Self::Object(Rc::clone(o)),
+            Self::List(v) => Self::List(Rc::clone(v)),
+            Self::Null => Self::Null,
+        }
+    }
     pub fn type_name(&self) -> &'static str {
         match *self {
             Self::Number(_) => "number",
             Self::Boolean(_) => "boolean",
             Self::String(_) => "string",
             Self::Object(_) => "object",
+            Self::List(_) => "list",
             Self::Null => "null",
         }
     }
@@ -83,7 +94,7 @@ impl Value {
             }
         }
 
-        Err(OperationError::InvalidUnary(op, self.clone()))
+        Err(OperationError::InvalidUnary(op, self.copy_shallow()))
     }
 
     pub fn operate(
@@ -102,15 +113,15 @@ impl Value {
                 (Value::Object(obj1), Value::Object(obj2)) => {
                     let mut new_obj = HashMap::new();
 
-                    for (key, value) in obj1.iter() {
-                        new_obj.insert(key.to_string(), value.clone());
+                    for (key, value) in obj1.borrow().iter() {
+                        new_obj.insert(key.to_string(), value.copy_shallow());
                     }
 
-                    for (key, value) in obj2.iter() {
-                        new_obj.insert(key.to_string(), value.clone());
+                    for (key, value) in obj2.borrow().iter() {
+                        new_obj.insert(key.to_string(), value.copy_shallow());
                     }
 
-                    return Ok(Value::Object(new_obj));
+                    return Ok(Value::Object(Rc::new(RefCell::new(new_obj))));
                 }
                 _ => {}
             },
@@ -152,9 +163,9 @@ impl Value {
         }
 
         Err(OperationError::InvalidBinary(
-            self.clone(),
+            self.copy_shallow(),
             op,
-            other.clone(),
+            other.copy_shallow(),
         ))
     }
 }
@@ -166,12 +177,27 @@ impl fmt::Display for Value {
             Value::Boolean(bool) => write!(f, "{}", bool),
             Value::String(str) => write!(f, "{}", str),
             Value::Null => write!(f, "null"),
+            Value::List(list) => {
+                if list.borrow().is_empty() {
+                    return write!(f, "{{}}");
+                }
+
+                let values = list
+                    .borrow()
+                    .iter()
+                    .map(Value::to_string)
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                write!(f, "[ {} ]", values)
+            }
             Value::Object(obj) => {
-                if obj.is_empty() {
+                if obj.borrow().is_empty() {
                     return write!(f, "{{}}");
                 }
 
                 let fields = obj
+                    .borrow()
                     .iter()
                     .map(|(key, value)| {
                         key.to_owned() + ": " + &value.to_string()

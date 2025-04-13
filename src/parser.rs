@@ -140,13 +140,16 @@ impl Parser {
         Ok(stmts)
     }
 
-    fn parse_expr_list(&mut self) -> Result<Vec<Expr>, ParseError> {
+    fn parse_expr_list(
+        &mut self,
+        terminator: TokenKind,
+    ) -> Result<Vec<Expr>, ParseError> {
         self.debug("parse expr list");
 
         let mut exprs = vec![];
 
         if let Some(current) = self.current() {
-            if let TokenKind::RightParen = current.kind {
+            if current.kind == terminator {
                 return Ok(exprs);
             }
         }
@@ -154,13 +157,13 @@ impl Parser {
         while self.current().is_some() {
             exprs.push(self.parse_expr()?);
 
-            if let Some(TokenKind::RightParen) =
-                self.current().map(|token| token.kind)
-            {
-                break;
-            } else {
-                self.consume(TokenKind::Comma)?;
+            if let Some(current) = self.current().map(|token| token.kind) {
+                if current == terminator {
+                    break;
+                }
             }
+
+            self.consume(TokenKind::Comma)?;
         }
 
         Ok(exprs)
@@ -264,6 +267,12 @@ impl Parser {
                 let fields = self.parse_object_fields()?;
                 self.consume(TokenKind::RightBrace)?;
                 Ok(Expr::ObjectLiteral(fields))
+            }
+            TokenKind::LeftBracket => {
+                self.consume(TokenKind::LeftBracket)?;
+                let values = self.parse_expr_list(TokenKind::RightBracket)?;
+                self.consume(TokenKind::RightBracket)?;
+                Ok(Expr::ListLiteral(values))
             }
             _ => Ok(Expr::FnCall(self.parse_fn_call()?)),
         }
@@ -401,7 +410,7 @@ impl Parser {
 
         let name = self.consume(TokenKind::Identifer)?.text;
         self.consume(TokenKind::LeftParen)?;
-        let args = self.parse_expr_list()?;
+        let args = self.parse_expr_list(TokenKind::RightParen)?;
         self.consume(TokenKind::RightParen)?;
 
         Ok(FnCall { name, args })

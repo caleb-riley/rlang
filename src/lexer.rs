@@ -10,6 +10,8 @@ pub enum TokenKind {
     RightParen,
     LeftBrace,
     RightBrace,
+    LeftBracket,
+    RightBracket,
     Comma,
     Semicolon,
     Colon,
@@ -66,6 +68,8 @@ impl Lexer {
             symbols.insert(')', TokenKind::RightParen);
             symbols.insert('{', TokenKind::LeftBrace);
             symbols.insert('}', TokenKind::RightBrace);
+            symbols.insert('[', TokenKind::LeftBracket);
+            symbols.insert(']', TokenKind::RightBracket);
             symbols.insert(',', TokenKind::Comma);
             symbols.insert(';', TokenKind::Semicolon);
             symbols.insert(':', TokenKind::Colon);

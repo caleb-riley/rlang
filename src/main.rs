@@ -77,7 +77,15 @@ fn main() -> std::io::Result<()> {
                     "Expected type {expected}, got {got}"
                 ))
             }
-            RuntimeError::NoScope => report_runtime_err("no scope"),
+            RuntimeError::NoScope => {
+                report_runtime_err("All scopes have been popped")
+            }
+            RuntimeError::IndexOutOfBounds(length, tried) => {
+                report_runtime_err(format!(
+                    "Index out of bounds: used index {} on a list of length {}",
+                    tried, length
+                ))
+            }
         },
     }
 }
