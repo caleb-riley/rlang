@@ -8,6 +8,7 @@ pub enum Operator {
     Minus,
     Star,
     Slash,
+    Equals,
     LessThan,
     GreaterThan,
 }
@@ -111,27 +112,33 @@ impl Value {
                     return Ok(Value::String(str1.clone() + str2));
                 }
                 (Value::Object(obj1), Value::Object(obj2)) => {
-                    let mut new_obj = HashMap::new();
-
-                    for (key, value) in obj1.borrow().iter() {
-                        new_obj.insert(key.to_string(), value.copy_shallow());
-                    }
-
-                    for (key, value) in obj2.borrow().iter() {
-                        new_obj.insert(key.to_string(), value.copy_shallow());
-                    }
+                    let new_obj = obj1
+                        .borrow()
+                        .iter()
+                        .chain(obj2.borrow().iter())
+                        .map(|(k, v)| (k.clone(), v.copy_shallow()))
+                        .collect();
 
                     return Ok(Value::Object(Rc::new(RefCell::new(new_obj))));
                 }
                 _ => {}
             },
-            Operator::Minus => {
-                if let (Value::Number(num1), Value::Number(num2)) =
-                    (self, other)
-                {
+            Operator::Minus => match (self, other) {
+                (Value::Number(num1), Value::Number(num2)) => {
                     return Ok(Value::Number(num1 - num2));
                 }
-            }
+                (Value::Object(obj1), Value::Object(obj2)) => {
+                    let new_obj = obj1
+                        .borrow()
+                        .iter()
+                        .filter(|(k, _)| !obj2.borrow().contains_key(*k))
+                        .map(|(k, v)| (k.clone(), v.copy_shallow()))
+                        .collect::<HashMap<_, _>>();
+
+                    return Ok(Value::Object(Rc::new(RefCell::new(new_obj))));
+                }
+                _ => {}
+            },
             Operator::Star => {
                 if let (Value::Number(num1), Value::Number(num2)) =
                     (self, other)
@@ -146,6 +153,19 @@ impl Value {
                     return Ok(Value::Number(num1 / num2));
                 }
             }
+            Operator::Equals => match (self, other) {
+                (Value::Number(num1), Value::Number(num2)) => {
+                    return Ok(Value::Boolean(*num1 == *num2));
+                }
+                (Value::Boolean(b1), Value::Boolean(b2)) => {
+                    return Ok(Value::Boolean(*b1 == *b2));
+                }
+                (Value::String(s1), Value::String(s2)) => {
+                    return Ok(Value::Boolean(s1 == s2));
+                }
+                (Value::Null, Value::Null) => return Ok(Value::Boolean(true)),
+                _ => {}
+            },
             Operator::LessThan => {
                 if let (Value::Number(num1), Value::Number(num2)) =
                     (self, other)

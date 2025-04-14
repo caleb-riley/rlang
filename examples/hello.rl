@@ -26,9 +26,13 @@ fn test_assignment_and_functions() {
 }
 
 fn test_objects() {
-    print("Testing object creation and addition");
+    print("Testing object creation and set operations");
 
-    let obj = { a: 5 } + { b: false };
+    let obj = { a: 5 } + { b: false, c: null };
+
+    print(obj);
+
+    let obj = { a: 5, b: "str" } - { a: 7, c: false };
 
     print(obj);
 }

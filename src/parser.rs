@@ -261,7 +261,10 @@ impl Parser {
                     Ok(Expr::Identfier(ident))
                 }
             }
-            TokenKind::NullKeyword => Ok(Expr::NullLiteral),
+            TokenKind::NullKeyword => {
+                self.consume(TokenKind::NullKeyword)?;
+                Ok(Expr::NullLiteral)
+            }
             TokenKind::LeftBrace => {
                 self.consume(TokenKind::LeftBrace)?;
                 let fields = self.parse_object_fields()?;
